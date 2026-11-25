@@ -1,0 +1,6 @@
+.secret_key
+biblioteca.db
+__pycache__/
+*.pyc
+.venv/
+venv/

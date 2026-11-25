@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de Gerenciamento de Biblioteca</title>
+<script src="https://unpkg.com/vue@3.4.38/dist/vue.global.prod.js"></script>
+<style>
+  :root{--bg:#f4f6fa;--card:#fff;--ink:#1f2937;--mut:#6b7280;--pri:#1d4ed8;--pri2:#1e40af;--ok:#15803d;--warn:#b45309;--bad:#b91c1c;--bd:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--pri);color:#fff;padding:.8rem 1.2rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+  header h1{font-size:1.1rem;margin:0;flex:1}
+  nav{display:flex;gap:.3rem;flex-wrap:wrap;padding:.6rem 1.2rem;background:#fff;border-bottom:1px solid var(--bd)}
+  nav button{background:none;border:0;padding:.5rem .9rem;border-radius:6px;cursor:pointer;font-size:.95rem;color:var(--ink)}
+  nav button.on{background:var(--pri);color:#fff}
+  main{max-width:1100px;margin:1.2rem auto;padding:0 1rem}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:1rem;margin-bottom:1rem}
+  h2{margin:.2rem 0 .8rem;font-size:1.15rem}
+  .grid{display:grid;gap:.7rem;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  label{display:block;font-size:.8rem;color:var(--mut);margin-bottom:.15rem}
+  input,select{width:100%;padding:.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:.95rem}
+  button.btn{background:var(--pri);color:#fff;border:0;padding:.5rem .9rem;border-radius:6px;cursor:pointer;font-size:.9rem}
+  button.btn:hover{background:var(--pri2)}
+  button.sec{background:#e5e7eb;color:var(--ink)} button.sec:hover{background:#d1d5db}
+  button.del{background:var(--bad)} button.del:hover{background:#991b1b}
+  button.sm{padding:.25rem .55rem;font-size:.8rem}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:.5rem;border-bottom:1px solid var(--bd);vertical-align:middle}
+  th{color:var(--mut);font-weight:600;font-size:.8rem;text-transform:uppercase}
+  .tbl{overflow-x:auto}
+  .tag{display:inline-block;padding:.1rem .5rem;border-radius:99px;font-size:.75rem;font-weight:600}
+  .t-ok{background:#dcfce7;color:var(--ok)} .t-warn{background:#fef3c7;color:var(--warn)} .t-bad{background:#fee2e2;color:var(--bad)} .t-gray{background:#e5e7eb;color:#374151}
+  .stats{display:grid;gap:.7rem;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:1rem}
+  .stat{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:.8rem}
+  .stat b{display:block;font-size:1.6rem} .stat span{color:var(--mut);font-size:.8rem}
+  .row{display:flex;gap:.5rem;align-items:end;flex-wrap:wrap}
+  .toast{position:fixed;bottom:1rem;right:1rem;padding:.7rem 1rem;border-radius:8px;color:#fff;max-width:340px;box-shadow:0 4px 14px #0003;z-index:9}
+  .toast.ok{background:var(--ok)} .toast.err{background:var(--bad)}
+  .login{max-width:360px;margin:12vh auto}
+  .mut{color:var(--mut);font-size:.85rem}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- LOGIN -->
+  <div v-if="!token" class="login card">
+    <h2>📚 Biblioteca — Acesso</h2>
+    <div style="margin-bottom:.6rem"><label>Login</label><input v-model.trim="lg.login" @keyup.enter="entrar" autofocus></div>
+    <div style="margin-bottom:.8rem"><label>Senha</label><input type="password" v-model="lg.senha" @keyup.enter="entrar"></div>
+    <button class="btn" @click="entrar" style="width:100%">Entrar</button>
+  </div>
+
+  <template v-else>
+    <header>
+      <h1>📚 Sistema de Gerenciamento de Biblioteca</h1>
+      <span>{{ nome }} ({{ perfil }})</span>
+      <button class="btn sec sm" @click="sair">Sair</button>
+    </header>
+    <nav>
+      <button v-for="a in abas" :key="a.id" :class="{on: aba===a.id}" @click="ir(a.id)">{{ a.nome }}</button>
+    </nav>
+
+    <main>
+      <!-- PAINEL -->
+      <section v-if="aba==='painel'">
+        <div class="stats">
+          <div class="stat"><b>{{ resumo.titulos }}</b><span>Títulos</span></div>
+          <div class="stat"><b>{{ resumo.exemplares }}</b><span>Exemplares</span></div>
+          <div class="stat"><b>{{ resumo.usuarios }}</b><span>Usuários ativos</span></div>
+          <div class="stat"><b>{{ resumo.emprestimos_abertos }}</b><span>Empréstimos abertos</span></div>
+          <div class="stat"><b :style="{color: resumo.atrasados? 'var(--bad)':''}">{{ resumo.atrasados }}</b><span>Em atraso</span></div>
+        </div>
+        <div class="card"><h2>Empréstimos em atraso</h2>
+          <p v-if="!atrasados.length" class="mut">Nenhum empréstimo em atraso. 🎉</p>
+          <div class="tbl" v-else><table>
+            <tr><th>Livro</th><th>Usuário</th><th>Prevista</th><th>Multa atual</th><th></th></tr>
+            <tr v-for="e in atrasados" :key="e.id"><td>{{ e.livro_titulo }}</td><td>{{ e.usuario_nome }}</td><td>{{ dt(e.data_prevista) }}</td><td>{{ moeda(e.multa_atual) }}</td>
+              <td><button class="btn sm" @click="devolver(e)">Devolver</button></td></tr>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- ACERVO (consulta) -->
+      <section v-if="aba==='acervo'">
+        <div class="card"><h2>Consulta ao acervo</h2>
+          <div class="row">
+            <div style="flex:1;min-width:220px"><label>Buscar por título, autor, editora ou ISBN</label><input v-model="busca" @input="carregarAcervo" placeholder="Digite para pesquisar..."></div>
+            <label style="display:flex;gap:.4rem;align-items:center;margin:0 0 .5rem"><input type="checkbox" v-model="soDisp" @change="carregarAcervo" style="width:auto"> Somente disponíveis</label>
+          </div>
+        </div>
+        <div class="card tbl"><table>
+          <tr><th>Título</th><th>Autor</th><th>Editora</th><th>Ano</th><th>Disponibilidade</th></tr>
+          <tr v-for="l in acervo" :key="l.id"><td>{{ l.titulo }}</td><td>{{ l.autor }}</td><td>{{ l.editora }}</td><td>{{ l.ano }}</td>
+            <td><span class="tag" :class="l.disponiveis>0?'t-ok':'t-bad'">{{ l.disponiveis>0 ? l.disponiveis+' de '+l.quantidade+' disponível(is)' : 'Indisponível' }}</span></td></tr>
+          <tr v-if="!acervo.length"><td colspan="5" class="mut">Nenhum livro encontrado.</td></tr>
+        </table></div>
+      </section>
+
+      <!-- LIVROS -->
+      <section v-if="aba==='livros'">
+        <div class="card"><h2>{{ fl.id ? 'Editar livro' : 'Cadastrar livro' }}</h2>
+          <div class="grid">
+            <div><label>Título *</label><input v-model.trim="fl.titulo" maxlength="200"></div>
+            <div><label>Autor *</label><input v-model.trim="fl.autor" maxlength="150"></div>
+            <div><label>Editora</label><input v-model.trim="fl.editora" maxlength="100"></div>
+            <div><label>ISBN (10 ou 13 dígitos)</label><input v-model.trim="fl.isbn"></div>
+            <div><label>Ano</label><input type="number" v-model.number="fl.ano"></div>
+            <div><label>Exemplares *</label><input type="number" min="0" v-model.number="fl.quantidade"></div>
+          </div>
+          <div class="row" style="margin-top:.8rem"><button class="btn" @click="salvarLivro">{{ fl.id ? 'Salvar alterações' : 'Cadastrar' }}</button>
+            <button v-if="fl.id" class="btn sec" @click="novoLivro">Cancelar</button></div>
+        </div>
+        <div class="card"><div class="row"><div style="flex:1"><label>Pesquisar</label><input v-model="busca" @input="carregarLivros" placeholder="Título, autor, ISBN..."></div></div></div>
+        <div class="card tbl"><table>
+          <tr><th>Título</th><th>Autor</th><th>ISBN</th><th>Exemplares</th><th>Disp.</th><th></th></tr>
+          <tr v-for="l in livros" :key="l.id"><td>{{ l.titulo }}</td><td>{{ l.autor }}</td><td>{{ l.isbn }}</td><td>{{ l.quantidade }}</td><td>{{ l.disponiveis }}</td>
+            <td style="white-space:nowrap"><button class="btn sm sec" @click="editarLivro(l)">Editar</button> <button class="btn sm del" @click="excluirLivro(l)">Excluir</button></td></tr>
+          <tr v-if="!livros.length"><td colspan="6" class="mut">Nenhum livro cadastrado.</td></tr>
+        </table></div>
+      </section>
+
+      <!-- USUÁRIOS -->
+      <section v-if="aba==='usuarios'">
+        <div class="card"><h2>{{ fu.id ? 'Editar usuário' : 'Cadastrar usuário' }}</h2>
+          <div class="grid">
+            <div><label>Nome *</label><input v-model.trim="fu.nome" maxlength="150"></div>
+            <div><label>CPF *</label><input v-model.trim="fu.cpf" placeholder="000.000.000-00"></div>
+            <div><label>E-mail *</label><input type="email" v-model.trim="fu.email"></div>
+            <div><label>Telefone</label><input v-model.trim="fu.telefone" placeholder="(86) 99999-0000"></div>
+            <div v-if="fu.id"><label>Situação</label><select v-model="fu.ativo"><option :value="true">Ativo</option><option :value="false">Inativo</option></select></div>
+          </div>
+          <div class="row" style="margin-top:.8rem"><button class="btn" @click="salvarUsuario">{{ fu.id ? 'Salvar alterações' : 'Cadastrar' }}</button>
+            <button v-if="fu.id" class="btn sec" @click="novoUsuario">Cancelar</button></div>
+        </div>
+        <div class="card"><div class="row"><div style="flex:1"><label>Pesquisar</label><input v-model="busca" @input="carregarUsuarios" placeholder="Nome, CPF ou e-mail..."></div></div></div>
+        <div class="card tbl"><table>
+          <tr><th>Nome</th><th>CPF</th><th>E-mail</th><th>Empr. abertos</th><th>Situação</th><th></th></tr>
+          <tr v-for="u in usuarios" :key="u.id"><td>{{ u.nome }}</td><td>{{ cpfFmt(u.cpf) }}</td><td>{{ u.email }}</td><td>{{ u.emprestimos_abertos }}</td>
+            <td><span class="tag" :class="u.ativo?'t-ok':'t-gray'">{{ u.ativo?'Ativo':'Inativo' }}</span></td>
+            <td style="white-space:nowrap"><button class="btn sm sec" @click="editarUsuario(u)">Editar</button> <button class="btn sm del" @click="excluirUsuario(u)">Excluir</button></td></tr>
+          <tr v-if="!usuarios.length"><td colspan="6" class="mut">Nenhum usuário cadastrado.</td></tr>
+        </table></div>
+      </section>
+
+      <!-- EMPRÉSTIMOS / DEVOLUÇÕES -->
+      <section v-if="aba==='emprestimos'">
+        <div class="card"><h2>Registrar empréstimo</h2>
+          <div class="grid">
+            <div><label>prazo(dias)</label><input type="number" min="1" v-model.number="fe.prazo_dias"></div>
+            <div><label>Usuário</label><select v-model="fe.usuario_id"><option value="">Selecione...</option>
+              <option v-for="u in usuariosAtivos" :key="u.id" :value="u.id">{{ u.nome }} — {{ cpfFmt(u.cpf) }}</option></select></div>
+            <div><label>Livro</label><select v-model="fe.livro_id"><option value="">Selecione...</option>
+              <option v-for="l in livrosDisp" :key="l.id" :value="l.id">{{ l.titulo }} ({{ l.disponiveis }} disp.)</option></select></div>
+          </div>
+          <p class="mut">Prazo de devolução: definido na contratação do acervo· multa de {{ moeda(cfg.multa) }} por dia de atraso · máx. {{ cfg.max }} empréstimos por usuário.</p>
+          <button class="btn" @click="emprestar">Registrar empréstimo</button>
+        </div>
+        <div class="card"><div class="row"><div><label>Filtrar</label>
+          <select v-model="filtroEmp" @change="carregarEmprestimos"><option value="">Todos</option><option value="abertos">Em aberto</option><option value="atrasados">Atrasados</option><option value="devolvidos">Devolvidos</option></select></div></div></div>
+        <div class="card tbl"><table>
+          <tr><th>Livro</th><th>Usuário</th><th>Emprestado</th><th>Prevista</th><th>Devolvido</th><th>Multa</th><th>Situação</th><th></th></tr>
+          <tr v-for="e in emprestimos" :key="e.id"><td>{{ e.livro_titulo }}</td><td>{{ e.usuario_nome }}</td><td>{{ dt(e.data_emprestimo) }}</td><td>{{ dt(e.data_prevista) }}</td>
+            <td>{{ dt(e.data_devolucao) }}</td><td>{{ e.multa_atual>0 ? moeda(e.multa_atual) : '—' }}</td>
+            <td><span class="tag" :class="{'t-ok':e.situacao==='em_andamento','t-bad':e.situacao==='atrasado','t-gray':e.situacao==='devolvido'}">{{ rotulo[e.situacao] }}</span></td>
+            <td><button v-if="!e.data_devolucao" class="btn sm" @click="devolver(e)">Registrar devolução</button></td></tr>
+          <tr v-if="!emprestimos.length"><td colspan="8" class="mut">Nenhum empréstimo registrado.</td></tr>
+        </table></div>
+      </section>
+
+      <!-- OPERADORES (admin) -->
+      <section v-if="aba==='operadores' && perfil==='admin'">
+        <div class="card"><h2>Novo operador do sistema</h2>
+          <div class="grid">
+            <div><label>Nome</label><input v-model.trim="fo.nome"></div>
+            <div><label>Login</label><input v-model.trim="fo.login"></div>
+            <div><label>Senha (mín. 8)</label><input type="password" v-model="fo.senha"></div>
+            <div><label>Perfil</label><select v-model="fo.perfil"><option value="bibliotecario">Bibliotecário</option><option value="admin">Administrador</option></select></div>
+          </div><button class="btn" style="margin-top:.8rem" @click="criarOperador">Cadastrar operador</button>
+        </div>
+        <div class="card tbl"><table>
+          <tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr>
+          <tr v-for="o in operadores" :key="o.id"><td>{{ o.nome }}</td><td>{{ o.login }}</td><td>{{ o.perfil }}</td>
+            <td><button class="btn sm del" @click="excluirOperador(o)">Excluir</button></td></tr>
+        </table></div>
+      </section>
+    </main>
+  </template>
+  <div v-if="msg.t" class="toast" :class="msg.k">{{ msg.t }}</div>
+</div>
+
+<script>
+const { createApp } = Vue;
+const vazioL = () => ({ id: null, titulo: '', autor: '', editora: '', isbn: '', ano: null, quantidade: 1 });
+const vazioU = () => ({ id: null, nome: '', cpf: '', email: '', telefone: '', ativo: true });
+
+createApp({
+  data() { return {
+    token: sessionStorage.getItem('token') || '', nome: sessionStorage.getItem('nome') || '', perfil: sessionStorage.getItem('perfil') || '',
+    lg: { login: '', senha: '' }, aba: 'painel', msg: { t: '', k: 'ok' }, busca: '', soDisp: false, filtroEmp: '',
+    resumo: {}, atrasados: [], acervo: [], livros: [], usuarios: [], emprestimos: [], operadores: [],
+    fl: vazioL(), fu: vazioU(), fe: { usuario_id: '', livro_id: '', prazo_dias: null }, fo: { nome: '', login: '', senha: '', perfil: 'bibliotecario' },
+    cfg: { multa: 0.5, max: 3 },
+    rotulo: { em_andamento: 'Em andamento', atrasado: 'Atrasado', devolvido: 'Devolvido' },
+    livrosDisp: [], usuariosAtivos: [],
+  }},
+  computed: { abas() {
+    const a = [{id:'painel',nome:'Painel'},{id:'acervo',nome:'Consulta ao acervo'},{id:'livros',nome:'Livros'},{id:'usuarios',nome:'Usuários'},{id:'emprestimos',nome:'Empréstimos e devoluções'}];
+    if (this.perfil === 'admin') a.push({id:'operadores',nome:'Operadores'});
+    return a;
+  }},
+  mounted() { if (this.token) this.ir('painel'); },
+  methods: {
+    async api(url, opt = {}) {
+      const r = await fetch(url, { ...opt, headers: { 'Content-Type': 'application/json', ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}) },
+        body: opt.body ? JSON.stringify(opt.body) : undefined });
+      if (r.status === 401 && this.token) { this.sair(); throw new Error('Sessão expirada. Entre novamente.'); }
+      if (r.status === 204) return null;
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.erro || 'Erro inesperado.');
+      return d;
+    },
+    aviso(t, k = 'ok') { this.msg = { t, k }; clearTimeout(this._t); this._t = setTimeout(() => this.msg.t = '', 3500); },
+    async tentar(fn) { try { await fn(); } catch (e) { this.aviso(e.message, 'err'); } },
+    dt(s) { return s ? s.split('-').reverse().join('/') : '—'; },
+    moeda(v) { return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); },
+    cpfFmt(c) { return c && c.length === 11 ? c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : c; },
+    entrar() { this.tentar(async () => {
+      const d = await this.api('/api/login', { method: 'POST', body: this.lg });
+      this.token = d.token; this.nome = d.nome; this.perfil = d.perfil;
+      sessionStorage.setItem('token', d.token); sessionStorage.setItem('nome', d.nome); sessionStorage.setItem('perfil', d.perfil);
+      this.lg = { login: '', senha: '' }; this.ir('painel');
+    }); },
+    sair() { sessionStorage.clear(); this.token = ''; this.nome = ''; this.perfil = ''; },
+    ir(a) { this.aba = a; this.busca = ''; this.tentar(async () => {
+      if (a === 'painel') { this.resumo = await this.api('/api/resumo'); this.atrasados = await this.api('/api/emprestimos?status=atrasados'); }
+      if (a === 'acervo') await this.carregarAcervo();
+      if (a === 'livros') await this.carregarLivros();
+      if (a === 'usuarios') await this.carregarUsuarios();
+      if (a === 'emprestimos') { await this.carregarEmprestimos(); await this.carregarListasEmp(); }
+      if (a === 'operadores') this.operadores = await this.api('/api/operadores');
+    }); },
+    carregarAcervo() { return this.tentar(async () => { this.acervo = await this.api(`/api/acervo?q=${encodeURIComponent(this.busca)}&disponiveis=${this.soDisp ? 1 : 0}`); }); },
+    carregarLivros() { return this.tentar(async () => { this.livros = await this.api('/api/livros?q=' + encodeURIComponent(this.busca)); }); },
+    carregarUsuarios() { return this.tentar(async () => { this.usuarios = await this.api('/api/usuarios?q=' + encodeURIComponent(this.busca)); }); },
+    carregarEmprestimos() { return this.tentar(async () => { this.emprestimos = await this.api('/api/emprestimos?status=' + this.filtroEmp); }); },
+    carregarListasEmp() { return this.tentar(async () => {
+      this.livrosDisp = (await this.api('/api/livros')).filter(l => l.disponiveis > 0);
+      this.usuariosAtivos = (await this.api('/api/usuarios')).filter(u => u.ativo);
+    }); },
+    // livros
+    novoLivro() { this.fl = vazioL(); },
+    editarLivro(l) { this.fl = { ...l, isbn: l.isbn || '' }; window.scrollTo(0, 0); },
+    salvarLivro() { this.tentar(async () => {
+      const { id, ...corpo } = this.fl;
+      await this.api(id ? `/api/livros/${id}` : '/api/livros', { method: id ? 'PUT' : 'POST', body: corpo });
+      this.aviso(id ? 'Livro atualizado.' : 'Livro cadastrado.'); this.novoLivro(); this.carregarLivros();
+    }); },
+    excluirLivro(l) { if (!confirm(`Excluir "${l.titulo}"?`)) return; this.tentar(async () => { await this.api(`/api/livros/${l.id}`, { method: 'DELETE' }); this.aviso('Livro excluído.'); this.carregarLivros(); }); },
+    // usuários
+    novoUsuario() { this.fu = vazioU(); },
+    editarUsuario(u) { this.fu = { ...u, ativo: !!u.ativo }; window.scrollTo(0, 0); },
+    salvarUsuario() { this.tentar(async () => {
+      const { id, ...corpo } = this.fu;
+      await this.api(id ? `/api/usuarios/${id}` : '/api/usuarios', { method: id ? 'PUT' : 'POST', body: corpo });
+      this.aviso(id ? 'Usuário atualizado.' : 'Usuário cadastrado.'); this.novoUsuario(); this.carregarUsuarios();
+    }); },
+    excluirUsuario(u) { if (!confirm(`Excluir ${u.nome}?`)) return; this.tentar(async () => { await this.api(`/api/usuarios/${u.id}`, { method: 'DELETE' }); this.aviso('Usuário excluído.'); this.carregarUsuarios(); }); },
+    // empréstimos
+    emprestar() { this.tentar(async () => {
+      await this.api('/api/emprestimos', { method: 'POST', body: this.fe });
+      this.aviso('Empréstimo registrado.'); this.fe = { usuario_id: '', livro_id: '', prazo_dias: null }; this.ir('emprestimos');
+    }); },
+    devolver(e) { this.tentar(async () => {
+      const r = await this.api(`/api/emprestimos/${e.id}/devolucao`, { method: 'POST' });
+      this.aviso(r.multa > 0 ? `Devolvido. Multa por atraso: ${this.moeda(r.multa)}` : 'Devolução registrada.'); this.ir(this.aba);
+    }); },
+    // operadores
+    criarOperador() { this.tentar(async () => { await this.api('/api/operadores', { method: 'POST', body: this.fo }); this.aviso('Operador cadastrado.'); this.fo = { nome: '', login: '', senha: '', perfil: 'bibliotecario' }; this.ir('operadores'); }); },
+    excluirOperador(o) { if (!confirm(`Excluir o operador ${o.nome}?`)) return; this.tentar(async () => { await this.api(`/api/operadores/${o.id}`, { method: 'DELETE' }); this.aviso('Operador excluído.'); this.ir('operadores'); }); },
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
