@@ -39,7 +39,7 @@ check("injeção SQL tratada como texto", c.get("/api/livros?q=' OR 1=1 --", hea
 # usuários
 r = c.post("/api/usuarios", headers=H, json={"nome": "João Pereira", "cpf": "529.982.247-25", "email": "joao@x.com", "telefone": "(86) 99999-0000"})
 check("criar usuário", r.status_code == 201); uid = r.json["id"]
-check("CPF inválido -> 400", c.post("/api/usuarios", headers=H, json={"nome": "Fulano", "cpf": "111.111.111-11", "email": "a@b.com"}).status_code == 400)
+check("CPF inválido -> 400", c.post("/api/usuarios", headers=H, json={"nome": "Fulano", "cpf": "123.456.789-0", "email": "a@b.com"}).status_code == 400)
 check("CPF duplicado -> 409", c.post("/api/usuarios", headers=H, json={"nome": "Outro", "cpf": "52998224725", "email": "o@x.com"}).status_code == 409)
 
 # empréstimo e devolução
