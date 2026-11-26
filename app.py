@@ -140,13 +140,7 @@ def cpf_valido(cpf):
 
 def isbn_valido(isbn):
     d = re.sub(r"[\s-]", "", isbn or "")
-    if len(d) == 10 and re.fullmatch(r"\d{9}[\dXx]", d):
-        total = sum((10 - i) * (10 if c in "Xx" else int(c)) for i, c in enumerate(d))
-        return total % 11 == 0
-    if len(d) == 13 and d.isdigit():
-        total = sum(int(c) * (1 if i % 2 == 0 else 3) for i, c in enumerate(d[:12]))
-        return (10 - total % 10) % 10 == int(d[12])
-    return False
+    return len(d) in (10, 13) and d.isdigit() 
 
 
 def calcular_multa(data_prevista, data_ref):
