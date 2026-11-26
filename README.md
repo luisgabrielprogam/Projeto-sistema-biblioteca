@@ -4,13 +4,6 @@ Implementação do artigo "Sistema de Gerenciamento de Biblioteca".
 
 **Stack:** Vue.js 3 (front-end) · Flask (API REST) · SQLite (banco de dados) · JWT (autenticação de segurança do projeto)
 
-## Comandos para execultar e rodar o projeto na sua máquina
-```bash
-pip install -r requirements.txt
-python app.py
-```
-Abra http://127.0.0.1:5000 (precisa de internet, o framework VUE que utilizamos precisa ser carregado pela CDN).
-
 ## Testes
 ```bash
 python test_api.py
