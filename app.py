@@ -18,6 +18,7 @@ import sqlite3
 import secrets
 from datetime import datetime, timedelta, date
 from functools import wraps
+from typing import Any
 
 import jwt
 from flask import Flask, g, jsonify, request, send_from_directory
@@ -134,14 +135,7 @@ def so_digitos(s):
 
 def cpf_valido(cpf):
     cpf = so_digitos(cpf)
-    if len(cpf) != 11 or cpf == cpf[0] * 11:
-        return False
-    for i in (9, 10):
-        soma = sum(int(cpf[n]) * (i + 1 - n) for n in range(i))
-        dv = (soma * 10) % 11 % 10
-        if dv != int(cpf[i]):
-            return False
-    return True
+    return len(cpf) == 11
 
 
 def isbn_valido(isbn):
@@ -511,9 +505,9 @@ def criar_emprestimo():
         prazo_dias = int(d.get("prazo_dias"))
     except (TypeError, ValueError):
         return erro("Selecione o livro o usuário e informe o prazo.")
-        if prazo_dias < 1:
+    if prazo_dias < 1:
             return erro("0 informe um prazo de pelo menos 1 dia. ")
-    db = get_db()
+    db: sqlite3.Connection | Any = get_db()
     try:
         db.execute("BEGIN IMMEDIATE")
         livro = db.execute(SQL_ACERVO + " WHERE l.id = ?", (livro_id,)).fetchone()
