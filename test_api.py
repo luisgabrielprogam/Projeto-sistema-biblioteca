@@ -43,10 +43,10 @@ check("CPF inválido -> 400", c.post("/api/usuarios", headers=H, json={"nome": "
 check("CPF duplicado -> 409", c.post("/api/usuarios", headers=H, json={"nome": "Outro", "cpf": "52998224725", "email": "o@x.com"}).status_code == 409)
 
 # empréstimo e devolução
-r = c.post("/api/emprestimos", headers=H, json={"livro_id": lid, "usuario_id": uid})
+r = c.post("/api/emprestimos", headers=H, json={"livro_id": lid, "usuario_id": uid , "prazo_dias": 7})
 check("emprestar", r.status_code == 201 and r.json["situacao"] == "em_andamento"); eid = r.json["id"]
 check("disponibilidade cai para 1", c.get(f"/api/livros/{lid}", headers=H).json["disponiveis"] == 1)
-check("mesmo livro duas vezes -> 409", c.post("/api/emprestimos", headers=H, json={"livro_id": lid, "usuario_id": uid}).status_code == 409)
+check("mesmo livro duas vezes -> 409", c.post("/api/emprestimos", headers=H, json={"livro_id": lid, "usuario_id": uid, "prazo_dias": 7}).status_code == 409)
 check("não exclui livro com histórico", c.delete(f"/api/livros/{lid}", headers=H).status_code == 409)
 check("não reduz estoque abaixo do emprestado", c.put(f"/api/livros/{lid}", headers=H, json={**livro, "quantidade": 0}).status_code == 400)
 
@@ -55,7 +55,7 @@ db = sqlite3.connect(os.environ["BIBLIOTECA_DB"])
 db.execute("UPDATE emprestimos SET data_prevista = ? WHERE id = ?", ((date.today() - timedelta(days=4)).isoformat(), eid)); db.commit(); db.close()
 check("aparece como atrasado", c.get("/api/emprestimos?status=atrasados", headers=H).json[0]["id"] == eid)
 l2 = c.post("/api/livros", headers=H, json={"titulo": "Outro", "autor": "Autor", "quantidade": 1}).json["id"]
-check("usuário atrasado não pega novo livro", c.post("/api/emprestimos", headers=H, json={"livro_id": l2, "usuario_id": uid}).status_code == 409)
+check("usuário atrasado não pega novo livro", c.post("/api/emprestimos", headers=H, json={"livro_id": l2, "usuario_id": uid, "prazo_dias": 7}).status_code == 409)
 r = c.post(f"/api/emprestimos/{eid}/devolucao", headers=H)
 check("devolução com multa de 4 dias (R$ 2,00)", r.status_code == 200 and r.json["multa"] == 2.0 and r.json["situacao"] == "devolvido")
 check("disponibilidade volta para 2", c.get(f"/api/livros/{lid}", headers=H).json["disponiveis"] == 2)
@@ -63,7 +63,7 @@ check("devolver duas vezes -> 409", c.post(f"/api/emprestimos/{eid}/devolucao", 
 
 # limite de 3 empréstimos
 ids = [c.post("/api/livros", headers=H, json={"titulo": f"L{i}", "autor": "A", "quantidade": 1}).json["id"] for i in range(4)]
-codes = [c.post("/api/emprestimos", headers=H, json={"livro_id": i, "usuario_id": uid}).status_code for i in ids]
+codes = [c.post("/api/emprestimos", headers=H, json={"livro_id": i, "usuario_id": uid, "prazo_dias": 7}).status_code for i in ids]
 check("limite de 3 empréstimos em aberto", codes == [201, 201, 201, 409])
 
 # consulta ao acervo
