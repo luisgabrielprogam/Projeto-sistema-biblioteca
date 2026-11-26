@@ -15,16 +15,6 @@ Abra http://127.0.0.1:5000 (precisa de internet, o vue que utilizamos precisa se
 ```bash
 python test_api.py
 ```
-
-## Módulos (Quadro 1 do artigo)
-| # | Módulo | Onde |
-|---|--------|------|
-| 01 | Cadastro de livros | aba Livros · `/api/livros` |
-| 02 | Cadastro de usuários | aba Usuários · `/api/usuarios` |
-| 03 | Empréstimos | aba Empréstimos · `POST /api/emprestimos` |
-| 04 | Devoluções | `POST /api/emprestimos/<id>/devolucao` |
-| 05 | Consulta ao acervo | aba Consulta ao acervo · `/api/acervo` |
-
 ## Regras de negócio
 Prazo definido quando você fez o empréstimo · multa de R$ 0,50/dia de atraso · máximo 3 empréstimos abertos por cada pessoa que contrata o empréstimo do acervo · vai bloquear um novo empréstimo para quem tem atraso ·
 estoque nunca fica abaixo do total emprestado · livros/usuários com histórico não são excluídos.
